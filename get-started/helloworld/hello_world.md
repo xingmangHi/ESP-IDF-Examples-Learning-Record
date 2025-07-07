@@ -86,7 +86,7 @@
 ...
 
 接下来`heap_init`,堆栈加载，即内存分配
-显示了`spi_flash`,SPI闪存大小，报警告由于闪存设置不匹配，可以在sdkconfig中设置，暂时不具体写
+显示了`spi_flash`,SPI闪存大小，报警告由于闪存设置不匹配，可以在menuconfig中设置，暂时不具体写
 最后`main_task`,主任务启动：
 
 * 运行在CPU0，即核0上

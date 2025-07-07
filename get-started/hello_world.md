@@ -99,7 +99,68 @@
 > 由于笔者在项目配置上花了许多时间，稍微具体写了构建项目的流程
 > 第一次具体学习和了解了启动信息，感觉需要理解消化
 > 同时对于esp-idf的代码熟悉程度不高
-> 此处不作代码分析
+> 但考虑到后续可能不会有机会再查看芯片信息，在此做少量代码分析
+
+### chip_info
+
+主要核心是`esp_chip_info_t`这个结构体。
+结构体定义如下：
+
+```c
+typedef enum {
+    CHIP_ESP32  = 1, //!< ESP32
+    CHIP_ESP32S2 = 2, //!< ESP32-S2
+    CHIP_ESP32S3 = 9, //!< ESP32-S3
+    CHIP_ESP32C3 = 5, //!< ESP32-C3
+    CHIP_ESP32C2 = 12, //!< ESP32-C2
+    CHIP_ESP32C6 = 13, //!< ESP32-C6
+    CHIP_ESP32H2 = 16, //!< ESP32-H2
+    CHIP_ESP32P4 = 18, //!< ESP32-P4
+    CHIP_ESP32C61= 20, //!< ESP32-C61
+    CHIP_ESP32C5 = 23, //!< ESP32-C5
+    CHIP_POSIX_LINUX = 999, //!< The code is running on POSIX/Linux simulator
+} esp_chip_model_t;
+
+typedef struct {
+    esp_chip_model_t model;  //!< chip model, one of esp_chip_model_t
+    uint32_t features;       //!< bit mask of CHIP_FEATURE_x feature flags
+    uint16_t revision;       //!< chip revision number (in format MXX; where M - wafer major version, XX - wafer minor version)
+    uint8_t cores;           //!< number of CPU cores
+} esp_chip_info_t;
+```
+
+定义后使用如下：
+
+```c
+/* Chip feature flags, used in esp_chip_info_t */
+#define CHIP_FEATURE_EMB_FLASH      BIT(0)      //!< Chip has embedded flash memory
+#define CHIP_FEATURE_WIFI_BGN       BIT(1)      //!< Chip has 2.4GHz WiFi
+#define CHIP_FEATURE_BLE            BIT(4)      //!< Chip has Bluetooth LE
+#define CHIP_FEATURE_BT             BIT(5)      //!< Chip has Bluetooth Classic
+#define CHIP_FEATURE_IEEE802154     BIT(6)      //!< Chip has IEEE 802.15.4
+#define CHIP_FEATURE_EMB_PSRAM      BIT(7)      //!< Chip has embedded psram
+
+printf("This is %s chip with %d CPU core(s), %s%s%s%s, ",
+           CONFIG_IDF_TARGET,
+           chip_info.cores,
+           (chip_info.features & CHIP_FEATURE_WIFI_BGN) ? "WiFi/" : "",
+           (chip_info.features & CHIP_FEATURE_BT) ? "BT" : "",
+           (chip_info.features & CHIP_FEATURE_BLE) ? "BLE" : "",
+           (chip_info.features & CHIP_FEATURE_IEEE802154) ? ", 802.15.4 (Zigbee/Thread)" : "");
+```
+
+通过定义和与运算进行判断后输出。
+
+### flash_size
+
+`esp_flash_get_size(NULL, &flash_size)`函数如下：
+
+* 第一个参数是一个指向 `esp_flash_t` 类型的指针，用于指定要查询的 Flash 设备，`NULL`代表默认设备
+* 第二个参数是一个指向整数类型的指针（`size_t*`），用于存储获取到的 Flash 大小到变量中去。
+* 返回`ESP_OK`代表成功，其他代表失败
+
+> IEEE 802.15.4是一种技术标准，它定义了低速率无线个域网 （LR-WPAN）的协议。 它规定了LR-WPAN的物理层和媒体访问控制 ，并由IEEE 802.15工作组维护，该工作组在2003年定义了该标准。它是Zigbee的基础，诸如 ISA100.11a ， WirelessHART ， MiWi ， 6LoWPAN ， 线程和SNAP规范，每个规范通过开发IEEE 802.15.4中未定义的上层进一步扩展了标准。[百科地址](https://baike.baidu.com/item/IEEE%20802.15.4/6657379#:~:text=%E6%8A%80%E6%9C%AF%E6%A0%87%E5%87%86IEEE%20802.15.4%E6%98%AF%E4%B8%80%E7%A7%8D%E6%8A%80%E6%9C%AF%E6%A0%87%E5%87%86%EF%BC%8C%E5%AE%83%E5%AE%9A%E4%B9%89%E4%BA%86%E4%BD%8E%E9%80%9F%E7%8E%87%E6%97%A0%E7%BA%BF%E4%B8%AA%E5%9F%9F%E7%BD%91)
+
 ---
 
 ## 总结

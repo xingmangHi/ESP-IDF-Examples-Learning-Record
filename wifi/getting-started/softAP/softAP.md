@@ -48,6 +48,8 @@
 
 ---
 
+## 代码分析
+
 ### app_main主函数
 
 在main函数中先进行NVS的配置，然后调用`wifi_init-softAP`函数进行启用
@@ -70,7 +72,7 @@ void app_main(void)
 }
 ```
 
-## 宏定义和静态函数
+### 宏定义和静态函数
 
 采用 **define** 将项目配置中的数据导入程序，定义了wifi **事件处理** 的静态函数
 
@@ -99,7 +101,7 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
 
 函数实现WiFi事件连接`STACONNECTED`和断开连接`STADISCONNECTED`，然后把event写为对应类型的事件，后进行`ESP_LOGI`信息输出
 
-## 初始化函数
+### 初始化函数
 
 > esp官方编程指南 [WiFi驱动](https://docs.espressif.com/projects/esp-idf/zh_CN/stable/esp32/api-guides/wifi.html#id4)
 

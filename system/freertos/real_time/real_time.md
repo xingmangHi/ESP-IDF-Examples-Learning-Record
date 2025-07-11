@@ -122,3 +122,150 @@ static void stats_task(void *arg)
     }
 }
 ```
+
+### 打印函数
+
+> 此函数用于打印在一段给定时间内的CPU使用情况
+>
+> 此函数将测量并打印指定时间内任务的CPU使用情况
+> 滴答数（即实时统计数据）。这可以通过简单地调用来实现
+> uxTaskGetSystemState（）两次以延迟分隔，然后计算延迟前后任务运行时间的差异
+>
+> 注意：
+> 如果在延迟期间增加或移除了任务，则不会打印这些任务的统计数据。
+> 高优先级调用时，需考虑任务延时性
+> 双核心运行下，每个核心运行时间为50%
+>
+> 参数：
+> `xTicksToWait` 统计测量周期
+>
+> 返回值：
+>
+> * ESP_OK 成功
+> * ESP_ERR_NO_MEM 内存不足，无法分配内部阵列
+> * ESP_ERR_INVALID_SIZE *uxTaskGetSystemState*的数组大小不足。尝试增加*ARRAY_SIZE_OFFSET*
+> * ESP_ERR_INVALID_STATE 延时太短
+>
+
+[任务API](https://docs.espressif.com/projects/esp-idf/zh_CN/stable/esp32/api-reference/system/freertos_idf.html#id23)
+
+函数首先定义了两个指针，指向**任务状态数组**；两个变量记录数组中**任务状态数量**；两个变量记录两次获取**任务状态的系统时间**，用于计算时间间隔。
+
+先使用 `uxTaskGetNumberOfTasks` 函数获取当前系统任务数量，加上偏移量后采用 `malloc`分配内存。接着用 `uxTaskGetSystemState` 获取系统任务状态和系统时间。 `vTaskDelay` 延时足够时间给任务运行。
+
+重复**获取系统量**的流程，计算**系统时间差**。遍历 start_array 中的每个任务状态，在 end_array 中查找具有相同任务句柄的任务状态。如果找到匹配的任务，计算该任务在两次获取状态之间的运行时间差。同时进行百分比转换。
+
+如果有不匹配的任务，即在延时期间创建或删除的任务，对任务进行打印，并标注创建或删除
+
+```c
+/**
+ * @brief   Function to print the CPU usage of tasks over a given duration.
+ *
+ * This function will measure and print the CPU usage of tasks over a specified
+ * number of ticks (i.e. real time stats). This is implemented by simply calling
+ * uxTaskGetSystemState() twice separated by a delay, then calculating the
+ * differences of task run times before and after the delay.
+ *
+ * @note    If any tasks are added or removed during the delay, the stats of
+ *          those tasks will not be printed.
+ * @note    This function should be called from a high priority task to minimize
+ *          inaccuracies with delays.
+ * @note    When running in dual core mode, each core will correspond to 50% of
+ *          the run time.
+ *
+ * @param   xTicksToWait    Period of stats measurement
+ *
+ * @return
+ *  - ESP_OK                Success
+ *  - ESP_ERR_NO_MEM        Insufficient memory to allocated internal arrays
+ *  - ESP_ERR_INVALID_SIZE  Insufficient array size for uxTaskGetSystemState. Trying increasing ARRAY_SIZE_OFFSET
+ *  - ESP_ERR_INVALID_STATE Delay duration too short
+ */
+static esp_err_t print_real_time_stats(TickType_t xTicksToWait)
+{
+    TaskStatus_t *start_array = NULL, *end_array = NULL;
+    UBaseType_t start_array_size, end_array_size;
+    configRUN_TIME_COUNTER_TYPE start_run_time, end_run_time;
+    esp_err_t ret;
+
+    //Allocate array to store current task states
+    start_array_size = uxTaskGetNumberOfTasks() + ARRAY_SIZE_OFFSET;
+    start_array = malloc(sizeof(TaskStatus_t) * start_array_size);
+    if (start_array == NULL) {
+        ret = ESP_ERR_NO_MEM;
+        goto exit;
+    }
+    //Get current task states
+    start_array_size = uxTaskGetSystemState(start_array, start_array_size, &start_run_time);
+    if (start_array_size == 0) {
+        ret = ESP_ERR_INVALID_SIZE;
+        goto exit;
+    }
+
+    vTaskDelay(xTicksToWait);
+
+    //Allocate array to store tasks states post delay
+    end_array_size = uxTaskGetNumberOfTasks() + ARRAY_SIZE_OFFSET;
+    end_array = malloc(sizeof(TaskStatus_t) * end_array_size);
+    if (end_array == NULL) {
+        ret = ESP_ERR_NO_MEM;
+        goto exit;
+    }
+    //Get post delay task states
+    end_array_size = uxTaskGetSystemState(end_array, end_array_size, &end_run_time);
+    if (end_array_size == 0) {
+        ret = ESP_ERR_INVALID_SIZE;
+        goto exit;
+    }
+
+    //Calculate total_elapsed_time in units of run time stats clock period.
+    uint32_t total_elapsed_time = (end_run_time - start_run_time);
+    if (total_elapsed_time == 0) {
+        ret = ESP_ERR_INVALID_STATE;
+        goto exit;
+    }
+
+    printf("| Task | Run Time | Percentage\n");
+    //Match each task in start_array to those in the end_array
+    for (int i = 0; i < start_array_size; i++) {
+        int k = -1;
+        for (int j = 0; j < end_array_size; j++) {
+            if (start_array[i].xHandle == end_array[j].xHandle) {
+                k = j;
+                //Mark that task have been matched by overwriting their handles
+                start_array[i].xHandle = NULL;
+                end_array[j].xHandle = NULL;
+                break;
+            }
+        }
+        //Check if matching task found
+        if (k >= 0) {
+            uint32_t task_elapsed_time = end_array[k].ulRunTimeCounter - start_array[i].ulRunTimeCounter;
+            uint32_t percentage_time = (task_elapsed_time * 100UL) / (total_elapsed_time * CONFIG_FREERTOS_NUMBER_OF_CORES);
+            printf("| %s | %"PRIu32" | %"PRIu32"%%\n", start_array[i].pcTaskName, task_elapsed_time, percentage_time);
+        }
+    }
+
+    //Print unmatched tasks
+    for (int i = 0; i < start_array_size; i++) {
+        if (start_array[i].xHandle != NULL) {
+            printf("| %s | Deleted\n", start_array[i].pcTaskName);
+        }
+    }
+    for (int i = 0; i < end_array_size; i++) {
+        if (end_array[i].xHandle != NULL) {
+            printf("| %s | Created\n", end_array[i].pcTaskName);
+        }
+    }
+    ret = ESP_OK;
+
+exit:    //Common return path
+    free(start_array);
+    free(end_array);
+    return ret;
+}
+```
+
+## 总结
+
+本例程展示了FREERTOS的原理。创建了几个任务，并直观地展示它们的运行时间，CPU占用率。接触了FREERTOS信号量和系统状态的几个API。但对系统具体运行和架构感受不深，留待后续实验学习。

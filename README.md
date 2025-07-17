@@ -25,7 +25,7 @@
 
 1. `get-started` 作为例程尝试的开始
 2. `wifi/getting-started`、`system/freertos` **初次接触**WiFi基础功能，接触RTOS相关内容
-3. `peripherals/gpio`、`uart`、`led`c、`adc`、`da`c、`rmt`、`timer`、`i2c`、`spi`、`twai（can总线）`等 作为嵌入式基础的**横向扩展**
+3. `peripherals/gpio`、`uart`、`led`c、`adc`、`dac`、`rmt`、`timer`、`i2c`、`spi`、`twai（can总线）`等 作为嵌入式基础的**横向扩展**
 4. `bluetooth`、`protocols/http`、`protocols/websocket`、`protocols/mqtt`、`protocols/now`等 了解各种**无线/网络通信协议**
 5. *待定*
 

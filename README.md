@@ -30,3 +30,17 @@
 5. *待定*
 
 该计划有笔者自己的安排，也有ai结果的参考，大致思路是`“接触体验-模块学习-尝试结合”`这样**逐渐**融会贯通整个系统。
+
+已完成例程如下：
+
+* get-started : **blink** , **hello_world**
+* wifi
+  * getting-started : **softAP** , **station**
+* systrm
+  * freertos : **basic_freertos** , **real_time**
+* peripherals
+  * gpio : **generic_gpio**
+  * uart : **uart_echo**
+  * ledc : **ledc_basic** , **ledc_fade**
+  * mcpwm : **mcpwm_bdc_speed_control** , **mcpwm_bldc_hall_control**
+  * rmt : **led_strip** , **led_strip_simple_encoder** , **dshot_esc** , **stepper_motor**

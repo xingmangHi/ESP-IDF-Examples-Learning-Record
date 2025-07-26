@@ -43,4 +43,4 @@
   * uart : **uart_echo**
   * ledc : **ledc_basic** , **ledc_fade**
   * mcpwm : **mcpwm_bdc_speed_control** , **mcpwm_bldc_hall_control**
-  * rmt : **led_strip** , **led_strip_simple_encoder** , **dshot_esc** , **stepper_motor**
+  * rmt : **led_strip** , **led_strip_simple_encoder** , **dshot_esc** , **stepper_motor** , **ir_nec_transceive**

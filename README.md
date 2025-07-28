@@ -45,4 +45,4 @@
   * mcpwm : **mcpwm_bdc_speed_control** , **mcpwm_bldc_hall_control**
   * rmt : **led_strip** , **led_strip_simple_encoder** , **dshot_esc** , **stepper_motor** , **ir_nec_transceive**
   * touch_sensor
-    * touch_sensor_v2 : **touch_pad_read**
+    * touch_sensor_v2 : **touch_pad_read** , **touch_pad_interrupt**

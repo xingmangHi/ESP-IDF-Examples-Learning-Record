@@ -44,5 +44,6 @@
   * ledc : **ledc_basic** , **ledc_fade**
   * mcpwm : **mcpwm_bdc_speed_control** , **mcpwm_bldc_hall_control**
   * rmt : **led_strip** , **led_strip_simple_encoder** , **dshot_esc** , **stepper_motor** , **ir_nec_transceive**
-  * touch_sensor
+  * touch_sensor (由于笔者查看touch_element只在v5.1.1的测试分支文档中有提及，不做相关实验)
     * touch_sensor_v2 : **touch_pad_read** , **touch_pad_interrupt**
+  * spi_master : **lcd**

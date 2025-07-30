@@ -12,6 +12,7 @@
 ## 代码分析
 
 > 本示例导入了外部组件库，笔者会酌情进行解读
+> 笔者分析完了主体代码，发现组件和其他有些函数为了lcd的数据发送和适配，在实际操作lcd的示例或实验中再作解释
 
 ### 全局/局部变量解读
 
@@ -315,7 +316,7 @@ void lcd_init(spi_device_handle_t spi)
 
 `lcd_spi_pre_transfer_callback` 函数作用在传输开始前，用于配置DC脚
 
-`lcd_get_id` 
+`lcd_get_id` 抢占总线并进行发送接收判断
 
 1. `spi_device_acquire_bus` 函数占用总线，用于连续发送或其他，此时与其他设备的传输处于待处理状态
 2. `lcd_cmd` 发送命令码
@@ -399,3 +400,91 @@ uint32_t lcd_get_id(spi_device_handle_t spi)
     return *(uint32_t*)t.rx_data;
 }
 ```
+
+### 发送相关函数
+
+`send_lines` 函数发送多行，采用中断模式提高平均效率(*和轮询多次发送相比*)
+
+1. 初始化储存，其中`trans`变量为static内部静态类型，只在第一次调用函数时初始化
+2. for循环初始化每一行数据，偶数位配置成命令码格式，奇数位配置成数据码格式，长度位32
+3. 依次指定数组每一位数据
+4. `spi_device_queue_trans` 将事务添加到队列中，等待中断传输
+
+> 笔者注，相比assert，采用ESP-IDF中的**ESP_ERROR_CHECK**等宏函数进行错误判断更符合实际使用情况(*assert会直接退出程序*)
+
+`send_line_finish` 函数和`send_lines`函数配合使用，等待发送完成。在官方编程指南中，也采用持续调用**spi_device_get_trans_result**函数的方式等待发送完成，没有对应中断触发(*ISR在许多过程中被禁用)
+
+```c
+/* To send a set of lines we have to send a command, 2 data bytes, another command, 2 more data bytes and another command
+ * before sending the line data itself; a total of 6 transactions. (We can't put all of this in just one transaction
+ * because the D/C line needs to be toggled in the middle.)
+ * This routine queues these commands up as interrupt transactions so they get
+ * sent faster (compared to calling spi_device_transmit several times), and at
+ * the mean while the lines for next transactions can get calculated.
+ */
+static void send_lines(spi_device_handle_t spi, int ypos, uint16_t *linedata)
+{
+    esp_err_t ret;
+    int x;
+    //Transaction descriptors. Declared static so they're not allocated on the stack; we need this memory even when this
+    //function is finished because the SPI driver needs access to it even while we're already calculating the next line.
+    static spi_transaction_t trans[6];
+
+    //In theory, it's better to initialize trans and data only once and hang on to the initialized
+    //variables. We allocate them on the stack, so we need to re-init them each call.
+    for (x = 0; x < 6; x++) {
+        memset(&trans[x], 0, sizeof(spi_transaction_t));
+        if ((x & 1) == 0) {
+            //Even transfers are commands
+            trans[x].length = 8;
+            trans[x].user = (void*)0;
+        } else {
+            //Odd transfers are data
+            trans[x].length = 8 * 4;
+            trans[x].user = (void*)1;
+        }
+        trans[x].flags = SPI_TRANS_USE_TXDATA;
+    }
+    trans[0].tx_data[0] = 0x2A;         //Column Address Set    设置列地址
+    trans[1].tx_data[0] = 0;            //Start Col High        起始列高位
+    trans[1].tx_data[1] = 0;            //Start Col Low         起始列低位
+    trans[1].tx_data[2] = (320 - 1) >> 8;   //End Col High      结束列高位
+    trans[1].tx_data[3] = (320 - 1) & 0xff; //End Col Low       结束列低位
+    trans[2].tx_data[0] = 0x2B;         //Page address set      设置页地址
+    trans[3].tx_data[0] = ypos >> 8;    //Start page high       起始页高位
+    trans[3].tx_data[1] = ypos & 0xff;  //start page low        起始页低位
+    trans[3].tx_data[2] = (ypos + PARALLEL_LINES - 1) >> 8; //end page high  结束页高位
+    trans[3].tx_data[3] = (ypos + PARALLEL_LINES - 1) & 0xff; //end page low 结束页低位
+    trans[4].tx_data[0] = 0x2C;         //memory write          储存器写入
+    trans[5].tx_buffer = linedata;      //finally send the line data 最后发送列数据
+    trans[5].length = 320 * 2 * 8 * PARALLEL_LINES;  //Data length, in bits 数据长度，多少位
+    trans[5].flags = 0; //undo SPI_TRANS_USE_TXDATA flag        撤销发送标志
+
+    //Queue all transactions.
+    for (x = 0; x < 6; x++) {
+        ret = spi_device_queue_trans(spi, &trans[x], portMAX_DELAY);
+        assert(ret == ESP_OK);
+    }
+
+    //When we are here, the SPI driver is busy (in the background) getting the transactions sent. That happens
+    //mostly using DMA, so the CPU doesn't have much to do here. We're not going to wait for the transaction to
+    //finish because we may as well spend the time calculating the next line. When that is done, we can call
+    //send_line_finish, which will wait for the transfers to be done and check their status.
+}
+
+static void send_line_finish(spi_device_handle_t spi)
+{
+    spi_transaction_t *rtrans;
+    esp_err_t ret;
+    //Wait for all 6 transactions to be done and get back the results.
+    for (int x = 0; x < 6; x++) {
+        ret = spi_device_get_trans_result(spi, &rtrans, portMAX_DELAY);
+        assert(ret == ESP_OK);
+        //We could inspect rtrans now if we received any info back. The LCD is treated as write-only, though.
+    }
+}
+```
+
+## 总结
+
+本例进行了spi主机的配置和数据发送，主要对SPI协议进行熟悉，了解具体发送配置，包括轮询发送和中断传输。具体使用还是比较简单的，但针对不同的驱动和设备，需要进行单独的驱动编写，即采用SPI发送适合驱动的数据以配合具体模块或芯片。

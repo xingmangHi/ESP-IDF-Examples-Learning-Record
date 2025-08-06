@@ -50,4 +50,4 @@
     * touch_sensor_v2 : **touch_pad_read** , **touch_pad_interrupt**
   * spi_master : **lcd** , **hd_eeprom**
   * spi_slave : **receiver** , **sender**
-  * i2c : **i2c_basic**
+  * i2c : **i2c_basic** , **i2c_tools**

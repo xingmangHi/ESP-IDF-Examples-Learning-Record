@@ -236,6 +236,8 @@ ESP HTTP 客户端支持事件处理，发生相关事件时会触发相应的�
    6. 后续操作基本相同，`valuestring`为json中解析出的字符串，进行打印和复制储存
    7. `cJSON_Delete` 删除解析的数据并释放内存 同时释放`json_buffer`中的内存并清空
 
+> valueint 整数型 、 valuestring 字符串型 、valuedouble 浮点型
+
 ```c
 static esp_err_t _http_event_handler(esp_http_client_event_t *evt)
 {

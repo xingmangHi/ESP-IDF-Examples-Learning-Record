@@ -51,3 +51,4 @@
   * spi_master : **lcd** , **hd_eeprom**
   * spi_slave : **receiver** , **sender**
   * i2c : **i2c_basic** , **i2c_tools** , **i2c_slace_network_sensor**
+  * twai : **twai_self_test**

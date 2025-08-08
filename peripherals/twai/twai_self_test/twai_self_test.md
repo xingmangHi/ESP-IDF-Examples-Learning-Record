@@ -90,7 +90,7 @@ static SemaphoreHandle_t done_sem;
 3. `twai_driver_install` 安装TWAI驱动
 4. 给控制任务信号量，启动控制任务。等待完成任务信号量
 5. `twai_driver_uninstall` 卸载驱动
-6. 删除信号量和队列？(*笔者猜测可能是编写错误*)
+6. 删除信号量(**根据源码定义，两删除函数在功能上等同，在编程时建议不出歧义**)
 
 ```c
 void app_main(void)

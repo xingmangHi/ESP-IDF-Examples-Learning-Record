@@ -53,4 +53,4 @@
   * i2c : **i2c_basic** , **i2c_tools** , **i2c_slace_network_sensor**
   * twai : **twai_self_test** , **twai_network_master** ,**twai_network_slave**
 * bluetooth
-  * ble_get_start: **Bluedroid_Beacon** , **Bluedroid_Connection** , **Bluedroid_GATT_Server** , **NimBLE_Beacon**
+  * ble_get_start: **Bluedroid_Beacon** , **Bluedroid_Connection** , **Bluedroid_GATT_Server** , **NimBLE_Beacon** , **NimBLE_Connection**

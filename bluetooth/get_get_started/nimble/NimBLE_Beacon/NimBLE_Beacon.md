@@ -192,6 +192,7 @@ inline static void format_addr(char *addr_str, uint8_t addr[]) {
 10. `ble_gap_adv_rsp_set_fields` 设置扫描响应数据
 11. `adv_params.conn_mode = BLE_GAP_CONN_MODE_NON` 连接模式为非连接 `adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN` 发现模式为一般发现
 12. `ble_gap_adv_start` 启动广播
+![广播包](nb3.png)
 
 ```c
 static void start_advertising(void) {

@@ -40,6 +40,7 @@
   * getting-started : **softAP** , **station**
 * systrm
   * freertos : **basic_freertos** , **real_time**
+  * task_watchdot : **task_watchdog**
 * peripherals
   * gpio : **generic_gpio**
   * uart : **uart_echo**

@@ -41,7 +41,7 @@
 * systrm
   * freertos : **basic_freertos** , **real_time**
   * task_watchdot : **task_watchdog**
-  * console ： **basic**
+  * console ： **basic** , **advanced**
 * peripherals
   * gpio : **generic_gpio**
   * uart : **uart_echo**

@@ -447,7 +447,25 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt)
 }
 ```
 
-### 
+### HTTP客户请求操作
+
+1. 初始化输出缓冲
+2. `esp_http_client_config_t` 进行客户端配置
+   * `host` 域名或IP作为字符串
+   * `path` HTTP路径，默认为`/`
+   * `query` HTTP查询
+   * `event_handler` HTTP事件句柄
+   * `user_data` 用户上下文数据（传递本地缓冲地址以获取响应）
+   * `disable_auto_redirect` 禁用HTTP自动重定向
+3. `esp_http_client_init` 给予配置创建HTTP客户端句柄
+4. `esp_http_client_perform` 执行客户端的所有操作，包括打开连接、交换数据、关闭连接（如需要），在任务完成前阻塞任务
+5. 在操作执行完成后，`esp_http_client_get_status_code`用于获取http响应状态码，`esp_http_client_get_content_length`获取http响应内容长度
+6. `esp_http_client_set_url` 为客户端设置url（替换）
+7. `esp_http_client_set_method` 设置http请求方法，常用为**GET**、**POST**、**PUT**![请求方法](ehc6.png)
+8. `esp_http_client_set_post_field` 设置POST方法传出的数据
+9. `esp_http_client_perform`执行操作，后续基本相同
+10. PATCH请求中，请求体不包含数据，设为NULL和0 `esp_http_client_set_post_field(client, NULL, 0)`
+11. `esp_http_client_cleanup` 关闭连接并释放分配给HTTP客户端实例的内存
 
 ```c
 static void http_rest_with_url(void)
@@ -551,3 +569,175 @@ static void http_rest_with_url(void)
     esp_http_client_cleanup(client);
 }
 ```
+
+***特殊情况***
+
+set_url中设置相对路径，会进行拼接，实际路径为(`http://CONFIG_EXAMPLE_HTTP_ENDPOINT/post`)参考前一个函数。
+
+[客户端配置](https://docs.espressif.com/projects/esp-idf/zh_CN/stable/esp32/api-reference/protocols/esp_http_client.html#_CPPv424esp_http_client_config_t)中有非常多可配置元素。
+
+对于示例中关于客户端请求的各个函数，最重要的区别就是`esp_http_client_config_t`结构体配置不同
+
+* `url` 设置HTTP URL，最重要，会覆盖重复字段
+* `host` 域名或IP作为字符串
+* `path` HTTP路径
+* `event_handler` HTTP事件处理函数
+* `transport_type` HTTP传输类型
+* `auth_type` HTTP身份验证类型
+* `max_authorization_retries` 收到HTTP未授权状态码时最大重连次数，-1时禁用重连
+* `buffer_size_tx` HTTP传输缓冲区大小
+* `crt_bundle_attach` 指向`esp_crt_bundle_attach`的函数指针，运行证书包进行服务器验证，需启用
+* `cert_pem` SSL服务器认证，用于[HTTPS请求](https://docs.espressif.com/projects/esp-idf/zh_CN/stable/esp32/api-reference/protocols/esp_http_client.html#https)
+* `disable_auto_redirect`禁用自动重定向
+
+```c
+esp_http_client_set_url(client, "/post"); 
+
+esp_http_client_config_t config = {
+    .host = CONFIG_EXAMPLE_HTTP_ENDPOINT,
+    .path = "/get",
+    .transport_type = HTTP_TRANSPORT_OVER_TCP,
+    .event_handler = _http_event_handler,
+};
+
+esp_http_client_config_t config = {
+    .url = "http://user:passwd@"CONFIG_EXAMPLE_HTTP_ENDPOINT"/basic-auth/user/passwd",
+    .event_handler = _http_event_handler,
+    .auth_type = HTTP_AUTH_TYPE_BASIC,
+    .max_authorization_retries = -1,
+};
+
+esp_http_client_config_t config = {
+    .url = "http://user:passwd@"CONFIG_EXAMPLE_HTTP_ENDPOINT"/basic-auth/user/passwd",
+    .event_handler = _http_event_handler,
+};
+
+esp_http_client_config_t config = {
+    .url = "http://user:passwd@"CONFIG_EXAMPLE_HTTP_ENDPOINT"/digest-auth/auth/user/passwd/SHA-256/never",
+    .event_handler = _http_event_handler,
+    .buffer_size_tx = 1024, // Increase buffer size as header size will increase as it contains SHA-256.
+};
+
+esp_http_client_config_t config = {
+    .url = "https://www.howsmyssl.com",
+    .event_handler = _http_event_handler,
+    .crt_bundle_attach = esp_crt_bundle_attach,
+};
+
+esp_http_client_config_t config = {
+    .host = "www.howsmyssl.com",
+    .path = "/",
+    .transport_type = HTTP_TRANSPORT_OVER_SSL,
+    .event_handler = _http_event_handler,
+    .cert_pem = howsmyssl_com_root_cert_pem_start,
+};
+
+esp_http_client_config_t config = {
+    .url = "http://"CONFIG_EXAMPLE_HTTP_ENDPOINT"/absolute-redirect/3",
+    .event_handler = _http_event_handler,
+    .disable_auto_redirect = true,
+};
+
+esp_http_client_config_t config = {
+    .url = "http://"CONFIG_EXAMPLE_HTTP_ENDPOINT"/redirect-to?url=https://www.howsmyssl.com",
+    .event_handler = _http_event_handler,
+    .cert_pem = howsmyssl_com_root_cert_pem_start,
+};
+
+```
+
+### HTTP客户端连接
+
+1. 配置部分略过
+2. `esp_http_client_open` 用`write_len`（参数为需要写入服务器的内容长度，等于0为只读）打开HTTP连接
+3. `esp_http_client_fetch_headers` 在发送完请求头和服务器数据（如有）后，读取HTTP服务的响应头，返回content-length
+4. `esp_http_client_read`读取HTTP流
+5. 获取状态码，数据长度
+6. `esp_http_client_close`关闭连接
+7. `esp_http_client_cleanup`释放分配的资源，`free`释放内存
+
+```c
+static void http_perform_as_stream_reader(void)
+{
+    char *buffer = malloc(MAX_HTTP_RECV_BUFFER + 1);
+    if (buffer == NULL) {
+        ESP_LOGE(TAG, "Cannot malloc http receive buffer");
+        return;
+    }
+    esp_http_client_config_t config = {
+        .url = "http://"CONFIG_EXAMPLE_HTTP_ENDPOINT"/get",
+    };
+    ESP_LOGI(TAG, "HTTP Stream reader request =>");
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+    esp_err_t err;
+    if ((err = esp_http_client_open(client, 0)) != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to open HTTP connection: %s", esp_err_to_name(err));
+        free(buffer);
+        return;
+    }
+    int content_length =  esp_http_client_fetch_headers(client);
+    int total_read_len = 0, read_len;
+    if (total_read_len < content_length && content_length <= MAX_HTTP_RECV_BUFFER) {
+        read_len = esp_http_client_read(client, buffer, content_length);
+        if (read_len <= 0) {
+            ESP_LOGE(TAG, "Error read data");
+        }
+        buffer[read_len] = 0;
+        ESP_LOGD(TAG, "read_len = %d", read_len);
+    }
+    ESP_LOGI(TAG, "HTTP Stream reader Status = %d, content_length = %"PRId64,
+                    esp_http_client_get_status_code(client),
+                    esp_http_client_get_content_length(client));
+    esp_http_client_close(client);
+    esp_http_client_cleanup(client);
+    free(buffer);
+}
+```
+
+下方代码为异步模式设置测试
+
+1. 配置中`is_async` 为 `true` ；`timeout_ms`设置超时事件
+2. 创建客户端并设置方法
+3. `esp_http_client_perform`异步模式下函数会立即返回，但请求未完成时返回**ESP_ERR_HTTP_EAGAIN**代表请求仍在进行
+4. 等待请求完成或一直错误超时，异步的优势在于程序能在等待请求完成同时执行其他任务或调整请求
+5. 获取状态码和返回长度
+6. 释放内存
+
+```c
+// Test HTTP_METHOD_HEAD with is_async enabled
+config.url = "https://"CONFIG_EXAMPLE_HTTP_ENDPOINT"/get";
+config.event_handler = _http_event_handler;
+config.crt_bundle_attach = esp_crt_bundle_attach;
+config.is_async = true;
+config.timeout_ms = 5000;
+
+client = esp_http_client_init(&config);
+esp_http_client_set_method(client, HTTP_METHOD_HEAD);
+
+while (1) {
+    err = esp_http_client_perform(client);
+    if (err != ESP_ERR_HTTP_EAGAIN) {
+        break;
+    }
+}
+if (err == ESP_OK) {
+    ESP_LOGI(TAG, "HTTPS Status = %d, content_length = %"PRId64,
+            esp_http_client_get_status_code(client),
+            esp_http_client_get_content_length(client));
+} else {
+    ESP_LOGE(TAG, "Error perform http request %s", esp_err_to_name(err));
+}
+esp_http_client_cleanup(client);
+```
+
+***其他函数***
+
+`esp_http_client_read_response` API内部多次调用`esp_http_client_read`读取数据，知道数据结束或缓冲区满
+
+`esp_http_client_write(client, post_data, strlen(post_data))` 向服务器写入数据，最大长度为 `esp_http_client_open()` 函数中的 `write_len` 值
+
+`esp_http_client_set_header` 设置http请求头
+
+## 总结
+
+本示例非常丰富而全面地展示了ESP作为http客户端的各种功能，包括请求，连接，甚至写数据。也突出了重点，主要是client结构体的参数配置，然后调用各种函数进行http请求的交互。

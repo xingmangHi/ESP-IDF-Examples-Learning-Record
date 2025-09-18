@@ -349,7 +349,7 @@ static void __led_strip_spi_bit(uint8_t data, uint8_t *buf)
 函数设置具体某个灯的RGB值
 
 1. `__containerof`函数用于通过结构体成员的指针反推结构体的起始地址，`strip`成员指针，反推`led_strip_spi_obj`类型，成员名称为`base`，即通过传入的strip指针，其实传入的是base的地址，反推包含其的led_strip_spi_obj类型结构体地址。
-2. `ESP_RETURN_ON_FALSE`即条件为FALS，就返回错误类型并进行日志打印
+2. `ESP_RETURN_ON_FALSE`即条件为FALSE，就返回错误类型并进行日志打印
 3. 设置`start`即数据中数据的起始索引，由index x 每像素字节 x 每颜色字节的SPI字节（由上分析，宏定义设置为3，和前对应）
 4. `memset`设置数组初始值，起始地址为buf首地址加start，初始为0，数据长度为每像素字节 x 每颜色字节的SPI字节（即一个灯3字节，每个颜色3字节，总共归零数组中9个元素）
 5. 调用函数把数据写入字节（*传入为uint32_t，而函数中为uint8_t，传入时只会处理低8位数据，即实际使用范围在0-255*）

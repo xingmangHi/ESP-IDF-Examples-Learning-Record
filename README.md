@@ -38,6 +38,7 @@
 * get-started : **blink** , **hello_world**
 * wifi
   * getting-started : **softAP** , **station**
+  * softAP_sta : **softAP_sta**
 * systrm
   * freertos : **basic_freertos** , **real_time**
   * task_watchdot : **task_watchdog**
@@ -59,7 +60,7 @@
     * i2s_basic : **i2s_std**
 * bluetooth
   * ble_get_start: **Bluedroid_Beacon** , **Bluedroid_Connection** , **Bluedroid_GATT_Server** , **NimBLE_Beacon** , **NimBLE_Connection**
-* other(笔者自行添加的相关解释) ：**led_strip_spi**
+* other(笔者自行添加的相关解释) ：**led_strip_spi** , **camera_web_server** , **esp_frpc**
 * protocols
   * esp_http_client: **esp_http_client**
   * http_server : **simple**

@@ -77,10 +77,12 @@ static void connect_handler(void* arg, esp_event_base_t event_base,
 ```
 
 1. `HTTPD_SSL_CONFIG_DEFAULT` 宏用于初始化HTTPS服务器
-2. `conf`配置服务器证书 `servercert` 和私钥 `prvtkey_pem`
-3. 配置回调的情况下绑定回调函数`https_server_user_callback`
-4. `httpd_ssl_start` 创建一个支持SSL的HTTP服务器
-5. `httpd_register_uri_handler`通过传入 httpd_uri_t 结构体类型的对象来注册 URI 处理程序
+2. 由于CMake文件中有外部链接文件，通过`extern const unsigned char servercert_start[] asm("_binary_servercert_pem_start");
+    extern const unsigned char servercert_end[]   asm("_binary_servercert_pem_end");`分别获取外部链接的头指针的尾指针
+3. `conf`配置服务器证书 `servercert` 和私钥 `prvtkey_pem`
+4. 配置回调的情况下绑定回调函数`https_server_user_callback`
+5. `httpd_ssl_start` 创建一个支持SSL的HTTP服务器
+6. `httpd_register_uri_handler`通过传入 httpd_uri_t 结构体类型的对象来注册 URI 处理程序
 
 ```c
 static httpd_handle_t start_webserver(void)

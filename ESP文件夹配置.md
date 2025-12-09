@@ -8,8 +8,8 @@
  ESP/
  - Project/
     - ESP_Example_test/
-    - ESP32S3/
-    - ESP32C3/
+    - ESP32-CAM
+    - ESP32-MP3
    ...
  - Framework/
     - v5.4.1/

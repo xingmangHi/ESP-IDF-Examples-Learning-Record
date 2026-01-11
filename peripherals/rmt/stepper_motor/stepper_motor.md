@@ -1,4 +1,4 @@
-# RMT Based Stepper Motor Smooth Controller 基于RMT的步进点击控制
+# RMT Based Stepper Motor Smooth Controller 基于RMT的步进电机控制
 
 ## 粗略阅读README文档
 

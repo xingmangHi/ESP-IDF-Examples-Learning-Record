@@ -1,5 +1,9 @@
 # I2C Tools I2C工具
 
+> 笔者注：经过笔者实测，该例程跑在ESP32C3的supermini开发板上，会显示警告
+> `--- Warning: Writing to serial is timing out. Please make sure that your application supports an interactive console and that you have picked the correct console for serial communication.`
+> 该警告会导致命令行无法正常响应，直接导致I2C工具***无法正常运行***
+
 ## 粗略阅读README文档
 
 文档简介本示例实现了基于esp32控制台组件的I2C工具，支持配置(GPIO引脚、端口号、频率)，扫描I2C总线设备，读取寄存器，设置寄存器，检查寄存器功能

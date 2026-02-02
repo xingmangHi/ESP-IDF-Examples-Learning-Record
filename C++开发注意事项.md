@@ -29,6 +29,37 @@ xTaskCreate(mpu6050_task_function, "mpu6050 task ", 4096, this, 5,
                 mpu6050_handler);
 ```
 
+* `xTaskCreate`函数接受参数为`TaskFunction_t`类型任务函数，普通的类内函数在c++编译下会有this参数，无法正常使用
+* 静态成员函数没有this参数，类似c函数
+* 且保持了面向对象的封装
+
+```cpp
+/**
+ * @brief 静态任务入口 - 文件写入任务
+ */
+void IMU_Data::write_task_entry(void* arg) {
+  IMU_Data* instance = static_cast<IMU_Data*>(arg);
+  instance->write_task_loop();
+}
+
+/**
+ * @brief 创建IMU数据处理任务（双任务版本）
+ * @note 创建两个任务：
+ *       - collection_task: 高优先级(5)，专门快速采集数据
+ *       - write_task: 低优先级(2)，专门处理慢速SD写入
+ */
+void IMU_Data::app_file_create_task() {
+  // 启动数据采集任务（高优先级）
+  if (s_collection_task == nullptr) {
+    xTaskCreate(collection_task_entry, "imu_collect", 4096, this, 5, &s_collection_task);
+    ESP_LOGI(TAG, "IMU collection task created successfully (priority 5)");
+  } else {
+    ESP_LOGW(TAG, "IMU collection task already exists");
+  }
+}
+```
+
+
 * 对于外部函数无法访问私有变量，可以在类内采用`friend`定义友元函数（友元不是成员，需要传递对象指针）
 * 或者定义一个成员函数进行任务操作，把实际任务函数中`while`循环中的操作写在该函数中
 
@@ -47,6 +78,8 @@ void mpu6050_task_function(void *arg){
 * `static`变量作为静态量，和静态函数
 * `cpp`源文件中，进行静态成员和宏定义
 * 在main函数中进行类函数调用
+* 在派生类中需要对重写的基类函数进行重新声明
+* `override`关键字用于“声明”函数是重写父类虚函数
 
 ```cpp
 class SDcard {
@@ -86,7 +119,9 @@ class IMU_Data :public SDcard{
     public:
         IMU_Data(const char* tag);                  // 构造函数
         ~IMU_Data();
-
+        // 基类函数重写
+        esp_err_t app_file_open_file() override;
+        esp_err_t app_file_write_file(int index,void* data) override;
         // IMU数据操作
         void imu_data_init(size_t size);            // 初始化数据缓冲区
         void imu_data_get(mpu6050_processed_data_t* data); // 获取当前帧数据

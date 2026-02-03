@@ -15,50 +15,6 @@
     };
 ```
 
-* 采用静态函数创建freertos任务函数，希望获取到类内成员，通过`this`将当前对象进行传递
-* 同时采用c++推荐的`static_cast<type>`方式进行类型转换
-
-```cpp
-static void mpu6050_task_function(void *arg) {
-    APP_MPU6050* instance = static_cast<APP_MPU6050*>(arg);
-    while(1){
-        
-    }
-}
-xTaskCreate(mpu6050_task_function, "mpu6050 task ", 4096, this, 5,
-                mpu6050_handler);
-```
-
-* `xTaskCreate`函数接受参数为`TaskFunction_t`类型任务函数，普通的类内函数在c++编译下会有this参数，无法正常使用
-* 静态成员函数没有this参数，类似c函数
-* 且保持了面向对象的封装
-
-```cpp
-/**
- * @brief 静态任务入口 - 文件写入任务
- */
-void IMU_Data::write_task_entry(void* arg) {
-  IMU_Data* instance = static_cast<IMU_Data*>(arg);
-  instance->write_task_loop();
-}
-
-/**
- * @brief 创建IMU数据处理任务（双任务版本）
- * @note 创建两个任务：
- *       - collection_task: 高优先级(5)，专门快速采集数据
- *       - write_task: 低优先级(2)，专门处理慢速SD写入
- */
-void IMU_Data::app_file_create_task() {
-  // 启动数据采集任务（高优先级）
-  if (s_collection_task == nullptr) {
-    xTaskCreate(collection_task_entry, "imu_collect", 4096, this, 5, &s_collection_task);
-    ESP_LOGI(TAG, "IMU collection task created successfully (priority 5)");
-  } else {
-    ESP_LOGW(TAG, "IMU collection task already exists");
-  }
-}
-```
-
 
 * 对于外部函数无法访问私有变量，可以在类内采用`friend`定义友元函数（友元不是成员，需要传递对象指针）
 * 或者定义一个成员函数进行任务操作，把实际任务函数中`while`循环中的操作写在该函数中
@@ -153,10 +109,63 @@ SDcard::app_file_init_once(); // 全局初始化
 ## 构建相关
 
 * 如果把`app_main()`函数的文件改为了c++文件，在编译时函数会被名称修饰，导致构建项目时找不到该函数，需要进行声明
+* 在整个任务流程中，如果`app_main`函数结束，日志会提示`main_task:Returned from app_main()`，导致main中的**函数变量被删除**，影响其他任务
 
 ```cpp
 extern "C" void app_main(void) {
+    APP_MPU6050 mpu6050("app_mpu6050"); // 类变量需放在外层，防止因main函数结束受影响
 }
 ```
 
-* 在整个任务流程中，如果`app_main`函数结束，日志会提示`main_task:Returned from app_main()`，导致main中的**函数变量被删除**，影响其他任务
+
+
+
+* 采用静态函数创建freertos任务函数，希望获取到类内成员，通过`this`将当前对象进行传递
+* 同时采用c++推荐的`static_cast<type>`方式进行类型转换
+
+```cpp
+static void mpu6050_task_function(void *arg) {
+    APP_MPU6050* instance = static_cast<APP_MPU6050*>(arg);
+    while(1){
+        
+    }
+}
+xTaskCreate(mpu6050_task_function, "mpu6050 task ", 4096, this, 5,
+                mpu6050_handler);
+```
+
+* `xTaskCreate`函数接受参数为`TaskFunction_t`类型任务函数，普通的类内函数在c++编译下会有this参数，无法正常使用
+* 静态成员函数没有this参数，类似c函数
+* 且保持了面向对象的封装
+
+```cpp
+        // 静态任务入口
+        static void collection_task_entry(void* arg);
+        static void write_task_entry(void* arg);
+```
+
+```cpp
+/**
+ * @brief 静态任务入口 - 文件写入任务
+ */
+void IMU_Data::write_task_entry(void* arg) {
+  IMU_Data* instance = static_cast<IMU_Data*>(arg);
+  instance->write_task_loop();
+}
+
+/**
+ * @brief 创建IMU数据处理任务（双任务版本）
+ * @note 创建两个任务：
+ *       - collection_task: 高优先级(5)，专门快速采集数据
+ *       - write_task: 低优先级(2)，专门处理慢速SD写入
+ */
+void IMU_Data::app_file_create_task() {
+  // 启动数据采集任务（高优先级）
+  if (s_collection_task == nullptr) {
+    xTaskCreate(collection_task_entry, "imu_collect", 4096, this, 5, &s_collection_task);
+    ESP_LOGI(TAG, "IMU collection task created successfully (priority 5)");
+  } else {
+    ESP_LOGW(TAG, "IMU collection task already exists");
+  }
+}
+```

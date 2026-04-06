@@ -106,6 +106,38 @@ class MIC_Data:public SDcard{
 SDcard::app_file_init_once(); // 全局初始化
 ```
 
+* c++可以构建动态数组，使用 `vector` 关键字进行说明
+* `vector<vector<int>>` 定义所有元素类型为int整型的二维动态数组
+* 同时动态数组包括很多操作接口
+
+```cpp
+static vector<vector<int>> detect_bound;
+
+detect_bound.clear() // 清空所有元素
+detect_bound.size() // 返回当前存储多少元素
+detect_bound.empty() // 是否为空，即size==0
+detect_bound.resize(n) // 强制把元素变成n个，新元素默认初始化，多余抛弃
+detect_bound.capacity() // 当前分配总内存能装多少元素，一般>=size
+
+detect_bound.push_back(val) // 在数组末尾添加一个元素
+detect_bound.pop_back() // 删除末尾元素
+detect_bound.insert(pos,val) // 在指定位置插入元素
+detect_bound.erase(pos) // 删除指定位置元素
+
+detect_bound.operator[i] // 等价 detect_bound[i]，不检查越界
+detect_bound.at(i) // 访问第i个，检查越界（可能被关闭）
+detect_bound.front() // 访问第一个元素
+detect_bound.back() // 访问最后一个元素
+```
+
+* `for( : )`的方式进行循环遍历
+* `const auto& res` 通过 `auto` 由编译器识别类型，`const` 和 `&` 引用 ，直接定义被引用对象为**遍历过程**的元素，**无拷贝**
+* 冒号右侧为被遍历的对象，通常是一个已知大小的数组，或提供了跌倒接口的类类型对象，包括**所有标准库容器**（如 std::vector, std::list, std::map 等）
+
+```cpp
+for (const auto& res : *(detect_element->detect_results))
+```
+
 ## 构建相关
 
 * 如果把`app_main()`函数的文件改为了c++文件，在编译时函数会被名称修饰，导致构建项目时找不到该函数，需要进行声明
@@ -116,9 +148,6 @@ extern "C" void app_main(void) {
     APP_MPU6050 mpu6050("app_mpu6050"); // 类变量需放在外层，防止因main函数结束受影响
 }
 ```
-
-
-
 
 * 采用静态函数创建freertos任务函数，希望获取到类内成员，通过`this`将当前对象进行传递
 * 同时采用c++推荐的`static_cast<type>`方式进行类型转换
@@ -168,4 +197,12 @@ void IMU_Data::app_file_create_task() {
     ESP_LOGW(TAG, "IMU collection task already exists");
   }
 }
+```
+
+* 使用 `reinterpret_cast<uint16_t*>`将后续变量类型强制转换为`uint16_t*`的指针类型 
+* `reinterpret_cast`，不修改任何内容，只进行类型转换
+* `static_cast` 会进行一定的逻辑操作，调整偏移等，不允许在 `uint8_t*` 和 `uint16_t*` 之间转换，只允许通用指针 `void*` 和其他转换
+
+```cpp
+input_element->buffer = reinterpret_cast<uint16_t*>(camera_buf);
 ```

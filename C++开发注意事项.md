@@ -138,6 +138,12 @@ detect_bound.back() // 访问最后一个元素
 for (const auto& res : *(detect_element->detect_results))
 ```
 
+* 类的继承，分为 `public` `protected` `private` ，其区别在于**基类的成员在派生类中会变成什么样的访问权限**
+* `public` 最常用，派生类对象可以使用基类函数
+* `protected` 和 `private` 派生类对象无法正常使用基类函数
+* 其他区别暂不展开
+
+
 ## 构建相关
 
 * 如果把`app_main()`函数的文件改为了c++文件，在编译时函数会被名称修饰，导致构建项目时找不到该函数，需要进行声明
@@ -205,4 +211,50 @@ void IMU_Data::app_file_create_task() {
 
 ```cpp
 input_element->buffer = reinterpret_cast<uint16_t*>(camera_buf);
+```
+
+* 类内静态变量需要在类外进行**定义**
+* 类内静态函数在源文件中按正常函数进行定义，静态函数的特殊在于，属于类不属于对象，**没有this**指针，只能访问静态成员，**可直接使用**
+
+```cpp
+class APP_Camera{
+private:
+    const char* TAG; // 日志头
+
+    static const char* DEVICE_PATH; // 设备地址
+
+public:
+    // 构造和析构函数
+    APP_Camera(const char* tag);
+    ~APP_Camera();
+
+    // 帧回调函数(静态，防止加this)
+    static void frame_operation_cb(uint8_t* buf, uint8_t index,uint32_t w,uint32_t h,size_t len);
+};
+
+/**************** cpp **************/
+
+const char* DEVICE_PATH =  EXAMPLE; // 静态变量定义
+
+void frame_operation_cb(uint8_t* buf, uint8_t index,uint32_t w,uint32_t h,size_t len){
+    // 详细实现
+}
+
+// 文件内静态函数
+static frame_function(uint8_t* buf, uint8_t index,uint32_t w,uint32_t h,size_t len){}
+```
+
+* 由于不想也不需要使用 `c++` 相关特性，部分文件使用 `c` 进行编程，在构建时会出现如 ` undefined reference to app_jpeg_enc_init() ` 类似的报错
+* 具体表现为，在某个 .c 后缀的源文件中声明且定义了该函数，但 构建时报错
+* 解决方案为在对应 .h 后缀的头文件中添加 “导出为c编译” 类似的说明
+
+```c
+#ifdef __cplusplus
+extern "C" {
+endif
+
+
+#ifdef __cplusplus
+}
+#endif
 ```

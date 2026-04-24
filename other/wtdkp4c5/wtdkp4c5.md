@@ -16,6 +16,10 @@
 5. 进入 `Minimum Supported ESP32-P4 Revision(Rev v1.0)`选择对应版本
    ![版本](版本.png)
 
+* ESP-Hosted 方案用于 ESP32P4和ESP32C5之间通信 
+* [参考链接1](https://blog.csdn.net/2301_76439614/article/details/148447958)
+* [参考链接2](https://blog.csdn.net/cheungxiongwei/article/details/146182111?ops_request_misc=%257B%2522request%255Fid%2522%253A%2522e80e74bf10fc0532a203a6ae52a6ac73%2522%252C%2522scm%2522%253A%252220140713.130102334..%2522%257D&request_id=e80e74bf10fc0532a203a6ae52a6ac73&biz_id=0&utm_medium=distribute.pc_search_result.none-task-blog-2~all~sobaiduend~default-4-146182111-null-null.142%5Ev102%5Epc_search_result_base3&utm_term=esp32p4)
+
 
 ## 解析
 
